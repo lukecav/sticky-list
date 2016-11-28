@@ -25,50 +25,38 @@ if (class_exists("GFForms")) {
         public function init(){
             parent::init();
 
-            // Add localization
             $this->stickylist_localize();
             
-            // Add setting to fields settings tab
             add_action("gform_field_standard_settings", array( $this, "stickylist_field_settings"), 10, 2);
-
-            // Add the Sticky List shortcode
+		
             add_shortcode( 'stickylist', array( $this, 'stickylist_shortcode' ) );
 
-            // Add supporting scripts to field settings page
             add_action("gform_editor_js", array($this, "editor_script"));
 
-            // Add field settings page tooltips
             add_filter("gform_tooltips", array( $this, "add_stickylist_tooltips"));
 
-            // Add css
             add_action("wp_enqueue_scripts", array( $this, "register_plugin_styles"), 5);
 
-            // View or Edit entries
             add_filter("gform_pre_render", array($this,"pre_entry_action"));
             add_action("gform_after_submission", array($this, "post_edit_entry"), 10, 2);
 
-            // Delete entries
             $this->maybe_delete_entry();
 
-            // Add notification options
             add_action("gform_notification_ui_settings", array($this, "stickylist_gform_notification_ui_settings"), 10, 3 );
             add_action("gform_pre_notification_save", array($this, "stickylist_gform_pre_notification_save"), 10, 2 );
             add_filter("gform_disable_notification", array($this, "stickylist_gform_disable_notification" ), 10, 4 );
             add_filter("gform_notification", array($this, "stickylist_modify_notification" ), 10, 3 );
 
-            // Add confirmation options
             add_action("gform_confirmation_ui_settings", array($this, "stickylist_gform_confirmation_ui_settings"), 10, 3 );
             add_action("gform_pre_confirmation_save", array($this, "stickylist_gform_pre_confirmation_save"), 10, 2 );
             add_filter("gform_confirmation", array($this, "stickylist_gform_confirmation"), 10, 4);
 
-            // Update connected Wordpress post if exsists
             add_filter("gform_post_data", array( $this, "stickylist_gform_post_data" ), 10, 3 );
 
             // Make sure required file fields validate when prepopulated whith existing file during edit
             add_filter('gform_validation', array( $this, "stickylist_validate_fileupload" ) );
         }
 
-        // This helps with initiating the add-on
         private static $_instance = null;
 		public static function get_instance() {
 			if ( self::$_instance == null ) {
@@ -92,16 +80,12 @@ if (class_exists("GFForms")) {
          */
         function stickylist_field_settings($position, $form_id){
 
-            // Get the form
             $form = GFAPI::get_form($form_id);
 
-            // Get form settings
             $settings = $this->get_form_settings($form);
                          
-            // Only show settings if Sticky List is enabled for this form
             if(isset($settings["enable_list"]) && true == $settings["enable_list"]){
                 
-                // Show below everything else
                 if($position == -1){ ?>
                     
                     <li class="list_setting">
@@ -229,25 +213,18 @@ if (class_exists("GFForms")) {
                 'test'          => ''
             ), $atts );
 
-            // Get the form ID from shortcode
             $form_id = $shortcode_id['id'];
 
-            // Get the user ID from shortcode
             $user_id = $shortcode_id['user'];
 
-            // Get the user ID from shortcode
             $showto = $shortcode_id['showto'];
 
-            // Get the filter field from shortcode
             $filterField = $shortcode_id['field'];
 
-            // Get the filter value from shortcode
             $filterValue = $shortcode_id['value'];
 
-            // Get the form
             $form = GFAPI::get_form($form_id);
 
-            // Get form settings
             $settings = $this->get_form_settings($form);
 
             // Setting variables
@@ -277,26 +254,20 @@ if (class_exists("GFForms")) {
             $enable_pagination      = $this->get_sticky_setting("enable_pagination", $settings);
             $page_entries           = $this->get_sticky_setting("page_entries", $settings);
 
-            // If a Custom embed url is set we override the selected embedd page
             if(isset($settings["custom_embedd_page"]) && $settings["custom_embedd_page"] != "") $embedd_page = $settings["custom_embedd_page"];
 
-            // If a showto value is set in the shortcode we override the value in settings
             if(isset($showto) && $showto != "") $show_entries_to = $showto;
             
-            // Only render list if Sticky List is enabled for this form
             if($enable_list){
 
-                // Get current user or get user ID from shortcode
                 if($user_id != "") {
                     $current_user_id = $user_id;
                 }else{
                     $current_user_id = $this->stickylist_get_current_user();
                 }
 
-                //Set max nr of entries to be shown
                 if($max_entries == "") { $max_entries = 999999; }
-
-                // Set sorting variables
+		    
                 if($enable_sort && $initial_sort) {
                     if($initial_sort == "date_added") {
                         $sorting = array();
@@ -307,19 +278,15 @@ if (class_exists("GFForms")) {
                     $sorting = array();
                 }
                 
-                // Set paging variables
                 $paging = array('offset' => 0, 'page_size' => $max_entries );
                    
-                // Get entries to show depending on settings
-                // Show only to creator
                 if($show_entries_to === "creator"){
 
                     $search_criteria["field_filters"][] = array("key" => "status", "value" => "active");
                     $search_criteria["field_filters"][] = array("key" => "created_by", "value" => $current_user_id);
 
                     $entries = GFAPI::get_entries($form_id, $search_criteria, $sorting, $paging);
-                
-                // Show to all logged in users   
+                 
                 }elseif($show_entries_to === "loggedin"){
                     
                     if(is_user_logged_in()) {
@@ -327,13 +294,11 @@ if (class_exists("GFForms")) {
                         $entries = GFAPI::get_entries($form_id, $search_criteria, $sorting, $paging);
                     }
                 
-                // Show to everyone
                 }elseif($show_entries_to === "everyone"){
                 
                     $search_criteria["field_filters"][] = array("key" => "status", "value" => "active");
                     $entries = GFAPI::get_entries($form_id, $search_criteria, $sorting, $paging);
                 
-                // Show to selected user role
                 }else{
                     $user = wp_get_current_user();
                     // Check if the current user has the selectecd role OR is admin
@@ -343,7 +308,6 @@ if (class_exists("GFForms")) {
                     }
                 }
 
-                // If a filter is set in the shortcode we filter out all entries that do not match
                 if(!empty($entries) && $filterField) {
                      foreach ($entries as $id => $data) {
                         if($data[$filterField] != $filterValue) {
@@ -352,12 +316,10 @@ if (class_exists("GFForms")) {
                      }
                 }
 
-                // Allow for entries filtering
                 if(!empty($entries)) {
                     $entries = apply_filters( 'filter_entries', $entries );
                 }
 
-                // If we have some entries, lets loop trough them and start building the output html
                 if(!empty($entries)) {
 
                     // Maybe reverse sort order
@@ -401,8 +363,6 @@ if (class_exists("GFForms")) {
                             $i++;
                         }
                     }
-
-                    // If view, edit, delete, postlink or duplicate is enabled we need an extra column
                     if($enable_view || $enable_edit || $enable_delete || $enable_postlink || $enable_duplicate) {
 
                         $list_html .= "<th class='sticky-action'>$action_column_header</th>";
@@ -410,14 +370,12 @@ if (class_exists("GFForms")) {
 
                     $list_html .= "</tr></thead><tbody class='list'>";
 
-                    // Make table rows
                     foreach ($entries as $entry) {
                         
                         $entry_id = $entry["id"];
 
                         $list_html .= "<tr>";
-
-                        // Recycle the sorting counter we used above
+			    
                         $i=0;
 
                         // Loop trough all the fields
@@ -1827,7 +1785,6 @@ if (class_exists("GFForms")) {
 
             }else{
 
-                // If Sticky List is not enabled for the current form
                 return $original_confirmation;
             }
         }
